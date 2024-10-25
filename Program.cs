@@ -123,11 +123,13 @@ class Program
         }
 
         Console.WriteLine("请输入你要选择的窗口编号：");
+        string selectTitle;
         while (true)
         {
             if (int.TryParse(Console.ReadLine(), out int choice) && choice > 0 && choice <= windows.Count)
             {
                 IntPtr selectedHandle = windows[choice - 1].hWnd;
+                selectTitle = windows[choice - 1].title;
                 Console.WriteLine($"选中的窗口句柄为: {selectedHandle}");
                 hWnd = selectedHandle;
                 break;
@@ -151,7 +153,7 @@ class Program
                     Uri serverUri = new Uri("ws://148.135.16.238:12345/");
                     await ws.ConnectAsync(serverUri, CancellationToken.None);
                     Console.WriteLine("Connected!");
-                                      
+                    await ws.SendAsync(Encoding.UTF8.GetBytes(selectTitle), WebSocketMessageType.Text, true, CancellationToken.None);
                     var receiveTask = ReceiveMessages(hWnd, ws, cancellationTokenSource.Token);
                     await receiveTask;
                 }
