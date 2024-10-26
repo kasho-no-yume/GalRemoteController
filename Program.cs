@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -40,6 +40,9 @@ class Program
     [DllImport("user32.dll", SetLastError = true)]
     static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern IntPtr PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
     [DllImport("user32.dll")]
     static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
 
@@ -51,6 +54,9 @@ class Program
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -272,30 +278,19 @@ class Program
         }
     }
 
-    static IntPtr GetWindowHandleByPid(int pid)
-    {
-        IntPtr foundHWnd = IntPtr.Zero;
-        EnumWindows(delegate (IntPtr hWnd, IntPtr lParam)
-        {
-            GetWindowThreadProcessId(hWnd, out uint processId);
-            if (processId == pid)
-            {
-                foundHWnd = hWnd;
-                return false; // Stop enumeration
-            }
-            return true;
-        }, IntPtr.Zero);
-        return foundHWnd;
-    }
-
     static byte[] CaptureWindow(IntPtr hWnd)
     {
+        uint dpi = GetDpiForWindow(hWnd);
+        double scale = dpi / 96.0; // 标准 DPI 是 96
         GetClientRect(hWnd, out RECT clientRect);
         POINT clientPoint = new POINT { X = clientRect.Left, Y = clientRect.Top };
         ClientToScreen(hWnd, ref clientPoint);
+        
 
         int width = clientRect.Right - clientRect.Left;
         int height = clientRect.Bottom - clientRect.Top;
+        width = (int)(width * scale);
+        height = (int)(height * scale);
 
         IntPtr hdcWindow = GetDC(hWnd);
         IntPtr hdcMemDC = CreateCompatibleDC(hdcWindow);
@@ -341,12 +336,17 @@ class Program
             return;
         }
 
+        uint dpi = GetDpiForWindow(hWnd);
+        double scale = dpi / 96.0; // 标准 DPI 是 96
+
         GetClientRect(hWnd, out RECT clientRect);
         POINT clientPoint = new POINT { X = clientRect.Left, Y = clientRect.Top };
         ClientToScreen(hWnd, ref clientPoint);
 
         int width = clientRect.Right - clientRect.Left;
         int height = clientRect.Bottom - clientRect.Top;
+        width = (int)(width * scale);
+        height = (int)(height * scale);
 
         int x = (int)(u * width);
         int y = (int)(v * height);
@@ -358,20 +358,25 @@ class Program
     {
         IntPtr lParam = (IntPtr)((y << 16) | (x & 0xFFFF));
 
-        SendMessage(hWnd, WM_LBUTTONDOWN, IntPtr.Zero, lParam);
-        SendMessage(hWnd, WM_LBUTTONUP, IntPtr.Zero, lParam);
+        PostMessage(hWnd, WM_LBUTTONDOWN, IntPtr.Zero, lParam);
+        PostMessage(hWnd, WM_LBUTTONUP, IntPtr.Zero, lParam);
 
         CaptureWindowWithClick(hWnd, x, y);      
         monitor.MonitorAndRecordAudioAsync();
     }
     static void CaptureWindowWithClick(IntPtr hWnd, int clickX, int clickY)
     {
+        uint dpi = GetDpiForWindow(hWnd);
+        double scale = dpi / 96.0; // 标准 DPI 是 96
+
         GetClientRect(hWnd, out RECT clientRect);
         POINT clientPoint = new POINT { X = clientRect.Left, Y = clientRect.Top };
         ClientToScreen(hWnd, ref clientPoint);
 
         int width = clientRect.Right - clientRect.Left;
         int height = clientRect.Bottom - clientRect.Top;
+        width = (int)(width * scale);
+        height = (int)(height * scale);
 
         IntPtr hdcWindow = GetDC(hWnd);
         IntPtr hdcMemDC = CreateCompatibleDC(hdcWindow);
